@@ -2,12 +2,12 @@ let parseDaily = function (data, today) {
     let listaFinal = [];
 
     console.log(JSON.stringify(data));
-    for (let i = 0; i < data.dias.length; i++) {
+    for (let i = 0; i < data.dia.length; i++) {
         // ¿Es el primer día?
         const isToday = (i === 0);
 
         // El objeto JSON de datos del día
-        const dia = data.dias[i];
+        const dia = data.dia[i];
 
         // Fecha
         const parts = dia.fecha.split("-");
@@ -98,8 +98,170 @@ let parseDaily = function (data, today) {
     return listaFinal;
 };
 
-let parseHourly = function (data) {
+let parseHourly = function (data, today) {
+    let listaFinal = [];
 
+    const ahora = new Date();
+    const currentHour = ahora.getHours();
+
+    console.log(JSON.stringify(data));
+    for (let i = 0; i < data.dia.length; i++) {
+        let dayList = {};
+
+        // ¿Es el primer día?
+        const isToday = (i === 0);
+
+        // El objeto JSON de datos del día
+        const dia = data.dia[i];
+
+        // Fecha
+        const parts = dia.fecha.split("-");
+        const dYear = parts[0];
+        const dMonth = parts[1];
+        const dDay = parts[2];
+
+        // Estado del cielo
+        const estadoCielo = dia.estadoCielo;
+        for (let j = 0; j < estadoCielo.length; j++) {
+            // Cojo cada cielo
+            const tempObj = estadoCielo[j];
+
+            // Si es la hora actual, lo guardo en ahora
+            const hourString = tempObj.periodo;
+            let hora = 0, theTimestamp = 0;
+            try {
+                hora = parseInt(hourString);
+                theTimestamp = parseInt(dYear + dMonth + dDay + hourString)
+            } catch (e) {
+                console.error(e);
+            }
+
+            // Si es la misma hora que ahora mismo y es el primer día = hoy
+            if (hora == currentHour && isToday) {
+                today.estado = tempObj.value;
+            }
+            // Si es mayor a la hora actual pa la lista o si no es hoy
+            else if (hora > currentHour || !isToday) {
+                // Como todavía la lista está vacía voy creando los elementos
+                dayList[hora] = {
+                    hora: hourString,
+                    fecha: getDayFormatted(dYear, dMonth, dDay),
+                    timestamp: theTimestamp,
+                    estado: tempObj.value
+                };
+            }
+        }
+
+        // Precipitacion
+        const precipitacion = dia.precipitacion;
+        for (let j = 0; j < precipitacion.length; j++) {
+            // Cojo cada cielo
+            const tempObj = precipitacion[j];
+
+            // Si es la hora actual, lo guardo en ahora
+            let hora = 0;
+            try {
+                hora = parseInt(tempObj.periodo);
+            } catch (e) {
+                console.error(e);
+            }
+
+            if (hora == currentHour && isToday) {
+                today.precipitacion = tempObj.value;
+            }
+            // Si es mayor a la hora actual pa la lista
+            else if (hora > currentHour || !isToday) {
+                // Cojo el elemento
+                dayList[hora].precipitacion = tempObj.value;
+            }
+        }
+
+        // Nieve
+        const nieve = dia.nieve;
+        for (let j = 0; j < nieve.length; j++) {
+            // Cojo cada cielo
+            const tempObj = nieve[j];
+
+            // Si es la hora actual, lo guardo en ahora
+            let hora = 0;
+            try {
+                hora = parseInt(tempObj.periodo);
+            } catch (e) {
+                console.error(e);
+            }
+
+            if (hora == currentHour && isToday) {
+                today.nieve = tempObj.value;
+            }
+            // Si es mayor a la hora actual pa la lista
+            else if (hora > currentHour || !isToday) {
+                // Cojo el elemento
+                dayList[hora].nieve = tempObj.value;
+            }
+        }
+
+        // Temperatura
+        const temperatura = dia.temperatura;
+        for (let j = 0; j < temperatura.length; j++) {
+            // Cojo cada cielo
+            const tempObj = temperatura[j];
+
+            // Si es la hora actual, lo guardo en ahora
+            let hora = 0;
+            try {
+                hora = parseInt(tempObj.periodo);
+            } catch (e) {
+                console.error(e);
+            }
+
+            if (hora == currentHour && isToday) {
+                today.temperatura = tempObj.value;
+            }
+            // Si es mayor a la hora actual pa la lista
+            else if (hora > currentHour || !isToday) {
+                // Cojo el elemento
+                dayList[hora].temperatura = tempObj.value;
+            }
+        }
+
+        // vientoAndRachaMax
+        const viento = dia.vientoAndRachaMax;
+        for (let j = 0; j < viento.length; j++) {
+            // Cojo cada cielo
+            const tempObj = viento[j];
+
+            // Si este elemento no tiene velocidad me lo salto
+            if (!tempObj.hasOwnProperty("velocidad")) {
+                continue;
+            }
+
+            // Si es la hora actual, lo guardo en ahora
+            let hora = 0;
+            try {
+                hora = parseInt(tempObj.periodo);
+            } catch (e) {
+                console.error(e);
+            }
+
+            if (hora == currentHour && isToday) {
+                today.vientoDireccion = tempObj.direccion[0];
+                today.vientoVelocidad = tempObj.velocidad[0];
+            }
+            // Si es mayor a la hora actual pa la lista
+            else if (hora > currentHour || !isToday) {
+                // Cojo el elemento
+                dayList[hora].vientoDireccion = tempObj.direccion[0];
+                dayList[hora].vientoVelocidad = tempObj.velocidad[0];
+            }
+        }
+
+        // Una vez finalizado el día, lo añado a la lista final
+        for (let key in dayList) {
+            listaFinal.push(dayList[key]);
+        }
+    }
+
+    return listaFinal;
 };
 
 module.exports = {
@@ -158,170 +320,3 @@ function getDayFormatted(year, month, day) {
 
     return result + day;
 }
-
-
-/*
-public static List<WeatherListItem> parseHourlyInfo(JSONObject data) {
-        // Los datos los guardo aquí
-        List<WeatherListItem> listaFinal = new ArrayList<>();
-
-        JSONArray dias;
-        Calendar calander = Calendar.getInstance();
-        int currentHour = calander.get(Calendar.HOUR_OF_DAY);
-
-        // Cojo el array de días
-        try {
-            dias = data.getJSONArray("dia");
-            Log.i("SOLECITO", "HourlyInfo");
-//            Log.i("SOLECITO", dias.toString());
-
-            // Voy recorriendo cada día
-            JSONObject dia, tempObj;
-            Hashtable<Integer, WeatherListItem> dayList = new Hashtable<>();
-
-            for (int i = 0; i < dias.length(); i++) {
-                // Limpio la lista
-                dayList.clear();
-
-                // ¿Es el primer día?
-                boolean isToday = i == 0;
-
-                // El objeto JSON de datos del día
-                dia = dias.getJSONObject(i);
-
-                // Fecha
-                String[] parts = dia.getString("fecha").split("-");
-                String dYear = parts[0];
-                String dMonth = parts[1];
-                String dDay = parts[2];
-
-                // Estado del cielo
-                JSONArray estadoCielo = dia.getJSONArray("estadoCielo");
-                for (int j = 0; j < estadoCielo.length(); j++) {
-                    // Cojo cada cielo
-                    tempObj = estadoCielo.getJSONObject(j);
-
-                    // Si es la hora actual, lo guardo en ahora
-                    String hourString = tempObj.getString("periodo");
-                    int hora = Integer.parseInt(hourString);
-
-                    // Si es la misma hora que ahora mismo y es el primer día = hoy
-                    if (hora == currentHour && isToday) {
-                        today.setEstado(tempObj.getString("value"));
-                    }
-                    // Si es mayor a la hora actual pa la lista o si no es hoy
-                    else if (hora > currentHour || !isToday) {
-                        // Como todavía la lista está vacía voy creando los elementos
-                        dayList.put(hora, new WeatherListItem(
-                                hourString,
-                                Utils.getDayFormatted(dYear, dMonth, dDay),
-                                Integer.parseInt(dYear + dMonth + dDay + hourString),
-                                tempObj.getString("value")
-                        ));
-                        //                                Utils.getMonthDayFormatted(dMonth, dDay),
-                    }
-                }
-
-                // Precipitacion
-                JSONArray precipitacion = dia.getJSONArray("precipitacion");
-                for (int j = 0; j < precipitacion.length(); j++) {
-                    // Cojo cada cielo
-                    tempObj = precipitacion.getJSONObject(j);
-
-                    // Si es la hora actual, lo guardo en ahora
-                    int hora = Integer.parseInt(tempObj.getString("periodo"));
-                    if (hora == currentHour && isToday) {
-                        today.setPrecipitacion(tempObj.getString("value"));
-                    }
-                    // Si es mayor a la hora actual pa la lista
-                    else if (hora > currentHour || !isToday) {
-                        // Cojo el elemento
-                        WeatherListItem tempItem = dayList.get(hora);
-                        tempItem.setPrecipitacion(tempObj.getString("value"));
-                        dayList.put(hora, tempItem);
-                    }
-                }
-
-                // Nieve
-                JSONArray nieve = dia.getJSONArray("nieve");
-                for (int j = 0; j < nieve.length(); j++) {
-                    // Cojo cada cielo
-                    tempObj = nieve.getJSONObject(j);
-
-                    // Si es la hora actual, lo guardo en ahora
-                    int hora = Integer.parseInt(tempObj.getString("periodo"));
-                    if (hora == currentHour && isToday) {
-                        today.setNieve(tempObj.getString("value"));
-                    }
-                    // Si es mayor a la hora actual pa la lista
-                    else if (hora > currentHour || !isToday) {
-                        // Cojo el elemento
-                        WeatherListItem tempItem = dayList.get(hora);
-                        tempItem.setNieve(tempObj.getString("value"));
-                        dayList.put(hora, tempItem);
-                    }
-                }
-
-                // Temperatura
-                JSONArray temperatura = dia.getJSONArray("temperatura");
-                for (int j = 0; j < temperatura.length(); j++) {
-                    // Cojo cada cielo
-                    tempObj = temperatura.getJSONObject(j);
-
-                    // Si es la hora actual, lo guardo en ahora
-                    int hora = Integer.parseInt(tempObj.getString("periodo"));
-                    if (hora == currentHour && isToday) {
-                        today.setTemperatura(tempObj.getString("value"));
-                    }
-                    // Si es mayor a la hora actual pa la lista
-                    else if (hora > currentHour || !isToday) {
-                        // Cojo el elemento
-                        WeatherListItem tempItem = dayList.get(hora);
-                        tempItem.setTemperatura(tempObj.getString("value"));
-                        dayList.put(hora, tempItem);
-                    }
-                }
-
-                // vientoAndRachaMax
-                JSONArray viento = dia.getJSONArray("vientoAndRachaMax");
-                for (int j = 0; j < viento.length(); j++) {
-                    // Cojo cada cielo
-                    tempObj = viento.getJSONObject(j);
-
-                    // Si este elemento no tiene velocidad me lo salto
-                    if (!tempObj.has("velocidad")) {
-                        continue;
-                    }
-
-                    // Si es la hora actual, lo guardo en ahora
-                    int hora = Integer.parseInt(tempObj.getString("periodo"));
-                    if (hora == currentHour && isToday) {
-                        today.setVientoDireccion(tempObj.getJSONArray("direccion").getString(0));
-                        today.setVientoVelocidad(tempObj.getJSONArray("velocidad").getString(0));
-                    }
-                    // Si es mayor a la hora actual pa la lista
-                    else if (hora > currentHour || !isToday) {
-                        // Cojo el elemento
-                        WeatherListItem tempItem = dayList.get(hora);
-                        tempItem.setVientoDireccion(tempObj.getJSONArray("direccion").getString(0));
-                        tempItem.setVientoVelocidad(tempObj.getJSONArray("velocidad").getString(0));
-                        dayList.put(hora, tempItem);
-                    }
-                }
-
-                // Una vez finalizado el día, lo añado a la lista final
-                for (Integer key : dayList.keySet()) {
-                    listaFinal.add(dayList.get(key));
-                }
-            }
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-
-        return listaFinal;
-    }
-
-
-
- */

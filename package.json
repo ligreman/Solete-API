@@ -9,6 +9,7 @@
     "chai-http": "^2.0.1",
     "express": "^4.13.4",
     "growl": "^1.10.5",
+    "helmet": "^3.12.1",
     "mocha": "^5.2.0",
     "object-assign": "4.1.0",
     "request": "^2.87.0"
