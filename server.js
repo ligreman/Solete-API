@@ -71,10 +71,12 @@ function updateMunicipios() {
 }
 
 function checkQueue() {
+    console.log('checkQueue');
+
     // Si hay cosas que pedir y no estoy ahora mismo procesando algo
     if (requestQueue.length > 0 && !fetching) {
-        Log.log('checkQueue');
-        console.log('checkQueue');
+        // Log.log('checkQueue');
+        console.log('Hay datos en la cola');
 
         // Estoy procesando
         fetching = true;

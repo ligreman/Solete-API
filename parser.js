@@ -1,7 +1,7 @@
 const parseDaily = function (data, today) {
     let listaFinal = [];
 
-    console.log(JSON.stringify(data));
+    // console.log(JSON.stringify(data));
     for (let i = 0; i < data.dia.length; i++) {
         // ¿Es el primer día?
         const isToday = (i === 0);
