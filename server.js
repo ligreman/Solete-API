@@ -134,8 +134,9 @@ app.get('/', function (req, res) {
     res.json({status: 'ok'});
 });
 
-app.get('/prediction/:idMunicipio', function (req, res) {
+app.get('/api/prediction/:idMunicipio', function (req, res) {
     let idMunicipio = req.params.idMunicipio;
+    console.log('Petición de predicciones recibida para el municipio ' + idMunicipio);
 
     // Validamos el municipio
     if (!municipios.hasOwnProperty(idMunicipio)) {
