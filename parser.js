@@ -1,4 +1,4 @@
-let parseDaily = function (data, today) {
+const parseDaily = function (data, today) {
     let listaFinal = [];
 
     console.log(JSON.stringify(data));
@@ -98,13 +98,13 @@ let parseDaily = function (data, today) {
     return listaFinal;
 };
 
-let parseHourly = function (data, today) {
+const parseHourly = function (data, today) {
     let listaFinal = [];
 
     const ahora = new Date();
     const currentHour = ahora.getHours();
 
-    console.log(JSON.stringify(data));
+    // console.log(JSON.stringify(data));
     for (let i = 0; i < data.dia.length; i++) {
         let dayList = {};
 

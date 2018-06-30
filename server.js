@@ -5,45 +5,100 @@ const express = require('express'),
     fs = require('fs'),
     weather = require('./aemet'),
     parser = require('./parser'),
-    helmet = require('helmet');
+    helmet = require('helmet'),
+    Log = require('./Log');
+
+// Log.setLevel('debug');
+// Log.log('Log level set');
 
 //****************** VARIABLES ********************
 const port = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080,
     ip = process.env.IP || process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0';
-let lastFetchedTimestamp = 0;
-let interval = null;
 let fetching = false;
+let requestQueue = [];
 
 //****************** CONFIGURATION ********************
 Object.assign = require('object-assign');
 app.use(bodyParser.json());
 app.use(helmet());
 
+// Leo el fichero de municipios
+let municipios = fs.readFileSync('json/municipios.json', {encoding: 'utf8'});
+municipios = JSON.parse(municipios);
+
+/*fs.readFile('json/municipios_raw.json', {encoding: 'utf8'}, function (err, data) {
+    let obj = {};
+    data = JSON.parse(data);
+    data.forEach(function (muni) {
+        let idd = '' + muni.cpro + muni.cmun;
+        idd = idd.substring(0, idd.length - 1);
+        obj[idd] = muni.nombre;
+    });
+
+    fs.writeFileSync('json/municipios.json', JSON.stringify(obj));
+});*/
+
+
 //****************** CRON JOB ********************
-// setInterval(getMunicipioData, 1000 * 60);
-getMunicipioData();
+// Interval para comprobar si hay elementos en la cola
+setInterval(checkQueue, 1000 * 15);
+// Interval para añadir elementos a la cola cada hora
+setInterval(updateMunicipios, 1000 * 60 * 60);
 
-function getMunicipioData() {
-    const idMunicipio = 24089;
-    let now = new Date().getTime();
+// TODO llamada mock
+// requestQueue.push(24089);
+// console.log(requestQueue);
 
-    // Si ha pasado más de 1 hora desde el último fetch y no estoy fetcheando ahora mismo
-    if (!fetching && now > (lastFetchedTimestamp + 60 * 60 * 1000)) {
+function updateMunicipios() {
+    // Log.log('updateMunicipios');
+    console.log('updateMunicipios');
+
+    // Recorro los json que hay en la carpeta json/municipios
+    fs.readdirSync('json/municipios').forEach(function (file) {
+        // Si es un json
+        if (file.includes('.json')) {
+            // Log.log('  Encontrado municipio', file);
+
+            const muni = file.replace('.json', '');
+            // Lo añado a la cola de elementos si no está ya
+            if (!requestQueue.includes(muni)) {
+                requestQueue.push(muni);
+            }
+        }
+    });
+    console.log(requestQueue);
+
+}
+
+function checkQueue() {
+    // Si hay cosas que pedir y no estoy ahora mismo procesando algo
+    if (requestQueue.length > 0 && !fetching) {
+        Log.log('checkQueue');
+        console.log('checkQueue');
+
+        // Estoy procesando
         fetching = true;
+        const idMunicipio = requestQueue.shift();
 
         // Pido los datos
         weather.weatherData(idMunicipio)
             .then(function (response) {
+                console.log('  He obtenido la respuesta de Aemet para ' + idMunicipio);
+
                 // Parseo los datos para generar los json actualizados
-                parseDataToFiles(response, now, idMunicipio);
+                parseDataToFiles(response, idMunicipio);
+                fetching = false;
             }, function (error) {
                 console.log('Error al obtener los datos del tiempo');
+                console.log(error);
+                fetching = false;
             });
     }
 }
 
-function parseDataToFiles(data, timestamp, idMunicipio) {
-    fetching = false;
+function parseDataToFiles(data, idMunicipio) {
+    // Log.log('parseDataToFiles');
+
     let today = {};
 
     try {
@@ -54,6 +109,7 @@ function parseDataToFiles(data, timestamp, idMunicipio) {
         const listaDiaria = parser.parseDaily(data.dailyData, today);
 
         const fichero = {
+            name: municipios[idMunicipio],
             today: today,
             daily: listaDiaria,
             hourly: listaHoraria
@@ -62,10 +118,12 @@ function parseDataToFiles(data, timestamp, idMunicipio) {
         // Guardo los ficheros
         fs.writeFileSync('json/municipios/' + idMunicipio + '.json', JSON.stringify(fichero));
 
-        lastFetchedTimestamp = timestamp;
+        // Devuelvo el json
+        return fichero;
     } catch (e) {
         console.log('Error al parsear los datos a ficheros');
         console.error(e);
+        return null;
     }
 }
 
@@ -78,36 +136,42 @@ app.get('/prediction/:idMunicipio', function (req, res) {
     let idMunicipio = req.params.idMunicipio;
 
     // Validamos el municipio
-    //TODO
-
-    /*
-     * TODO
-     * Si no existe el fichero de municipio lo que hago es lanzar el proceso que lo obtiene de la web.
-     * Luego el interval cogerá todos los diferentes municipios de los nombres de los json y los actualizará
-     * pedirá cada municipio en cada 15 segundos, para no saturar y siempre que no haya sido actualizado desde
-     * hace 1 hora
-     *
-     * Puedo crear una array a modo de cola con los id de los municipios a actualizar. El interval sería cada 15 segundos
-     * mirando si hay elementos en el array y los va procesando. Otro interval cada hora mete los municipios json existentes
-     * en dicha cola, sin duplicados.
-     */
+    if (!municipios.hasOwnProperty(idMunicipio)) {
+        res.status(500).json({error: true, msg: 'El municipio no existe'});
+        return;
+    }
 
     // Cojo el json de este municipio y lo devuelvo
     const file = 'json/municipios/' + idMunicipio + '.json';
     if (fs.existsSync(file)) {
-        fs.readFileSync(file, {encoding: 'utf8'}, (err, data) => {
+        fs.readFile(file, {encoding: 'utf8'}, function (err, data) {
             if (err) {
                 res.status(500).json({error: true});
             } else {
                 try {
-                    res.send(JSON.parse(data));
+                    res.json(JSON.parse(data));
                 } catch (error) {
                     res.status(500).json({error: true});
                 }
             }
         });
     } else {
-        res.status(500).json({error: true});
+        // Como no existe, lo pido proactivamente sin esperara a la cola
+        weather.weatherData(idMunicipio)
+            .then(function (response) {
+                // Parseo los datos para generar los json actualizados
+                const respuesta = parseDataToFiles(response, idMunicipio);
+                if (respuesta !== null) {
+                    res.json(respuesta);
+                } else {
+                    console.log('Error al parsear los datos de la petición');
+                    res.status(500).json({error: true});
+                }
+            }, function (error) {
+                console.log('Error al obtener los datos del tiempo');
+                console.log(error);
+                res.status(500).json({error: true});
+            });
     }
 });
 

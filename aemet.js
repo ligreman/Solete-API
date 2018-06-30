@@ -8,7 +8,7 @@ const API_KEY = "?api_key=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJsb3ZlaGluYWVzcEBnbWFpb
 
 let jsonData = null;
 
-let weatherData = function (idMunicipio) {
+const weatherData = function (idMunicipio) {
     jsonData = {
         idMunicipio: '' + idMunicipio,
         dailyData: null,
@@ -57,7 +57,7 @@ function getData(type) {
                 let json = null;
                 try {
                     json = JSON.parse(body);
-                    console.log(json);
+                    // console.log(json);
                 } catch (e) {
                     console.log('Error al parsear data');
                     reject(e);
@@ -78,7 +78,7 @@ function getData(type) {
                                 if (Array.isArray(json2)) {
                                     json2 = json2[0];
                                 }
-                                console.log(json2);
+                                // console.log(json2);
                             } catch (e) {
                                 console.log('Error al parsear data');
                                 reject(e);
